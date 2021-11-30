@@ -100,6 +100,20 @@ class ProgressionTransform: ObservableObject {
         let node_6 = Fader(node_5)
         silence = Fader(node_6, gain: 0)
         engine.output = silence
+        
+        data.prog_note = notes_sharps[data.start_note] + "\(data.start_oct)"
+        data.note_names.append(data.prog_note)
+        var temp = data.start_note
+        for j in 0 ..< data.prog.steps.count {
+            let a : Range<Double> = data.prog.steps[j].interval
+            let i = Int(a.upperBound - a.lowerBound)
+            temp += i
+            let new_note = notes_sharps[temp]
+            if new_note == "C" {
+                data.start_oct += 1
+            }
+            data.note_names.append(new_note + "\(data.start_oct)")
+        }
 
         tracker = PitchTap(mic) { pitch, amp in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -111,19 +125,19 @@ class ProgressionTransform: ObservableObject {
     func start() {
         do {
             try engine.start()
-            data.prog_note = notes_sharps[data.start_note] + "\(data.start_oct)"
-            data.note_names.append(data.prog_note)
-            var temp = data.start_note
-            for j in 0 ..< data.prog.steps.count {
-                let a : Range<Double> = data.prog.steps[j].interval
-                let i = Int(a.upperBound - a.lowerBound)
-                temp += i
-                let new_note = notes_sharps[temp]
-                if new_note == "C" {
-                    data.start_oct += 1
-                }
-                data.note_names.append(new_note + "\(data.start_oct)")
-            }
+//            data.prog_note = notes_sharps[data.start_note] + "\(data.start_oct)"
+//            data.note_names.append(data.prog_note)
+//            var temp = data.start_note
+//            for j in 0 ..< data.prog.steps.count {
+//                let a : Range<Double> = data.prog.steps[j].interval
+//                let i = Int(a.upperBound - a.lowerBound)
+//                temp += i
+//                let new_note = notes_sharps[temp]
+//                if new_note == "C" {
+//                    data.start_oct += 1
+//                }
+//                data.note_names.append(new_note + "\(data.start_oct)")
+//            }
             timer = Timer.scheduledTimer(timeInterval: 3, target: self, selector: #selector(fireTimer), userInfo: nil, repeats: true)
             tracker.start()
         } catch let err {
@@ -135,16 +149,42 @@ class ProgressionTransform: ObservableObject {
         engine.stop()
         timer.invalidate()
     }
+}
 
+func mirrorProg(vals: inout Progression, notes: inout [String]) -> (notes: [String], vals: Progression){
+    let notes_len = notes.count
+    let vals_len = vals.steps.count
+    for i in 2 ..< notes_len {
+        notes.append(notes[notes_len - i])
+    }
+    for j in 2 ..< vals_len {
+        vals.steps.append(vals.steps[vals_len - j])
+    }
+    return (notes, vals)
 }
 
 struct ProgressionEvaluateView: View {
     @StateObject var transform = ProgressionTransform()
+    var prog : Progression = load("pentatonic.json")
     @State var isClicked = false
+    @State var longPress = false
+    
+    
+//    var notes : [String] = ProgressionTransform().data.note_names
+//    var vals : Progression = ProgressionTransform().data.prog
+    
+    let result = mirrorProg(vals: &ProgressionTransform().data.prog, notes: &ProgressionTransform().data.note_names)
+//    var notes : [String] = result.notes
+//    var vals : Progression = result.vals
     
     var body: some View {
         VStack  {
-            StaffView(warmup: ProgressionData().steps, notes: transform.data.note_names)
+            Spacer()
+            HStack {
+                Spacer()
+                StaffView(warmup: result.vals, notes: result.notes)
+                Spacer()
+            }
 //            HStack {
 //                Text("\(transform.data.note_sharps)")
 //                Spacer()
@@ -155,13 +195,114 @@ struct ProgressionEvaluateView: View {
 //            HStack {
 //                Text("\(transform.data.start_note)")
 //            }
+            Spacer()
+            HStack {
+                Spacer()
+                Button(action: {
+                    if self.longPress {
+                        self.transform.start()
+                        isClicked = false
+                        longPress = false
+                    }
+                    self.transform.stop()
+                }) {
+                    Image(systemName: "arrow.down")
+                
+                }
+                .padding()
+                .overlay(
+                            RoundedRectangle(cornerRadius: 30)
+                                .stroke(Color.blue, lineWidth: 2)
+                        )
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
+                        self.transform.start()
+                        isClicked = true
+                        longPress = true
+                    })
+                )
+                Spacer()
+                Button(action: {
+                    if self.longPress {
+                        self.transform.start()
+                        isClicked = false
+                        longPress = false
+                    }
+                    self.transform.stop()
+                }) {
+                    Image(systemName: "mic")
+                
+                }
+                .padding()
+                .overlay(
+                            RoundedRectangle(cornerRadius: 30)
+                                .stroke(Color.blue, lineWidth: 2)
+                        )
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
+                        self.transform.start()
+                        isClicked = true
+                        longPress = true
+                    })
+                )
+                Spacer()
+                Button(action: {
+                    if self.longPress {
+                        self.transform.start()
+                        isClicked = false
+                        longPress = false
+                    }
+                    self.transform.stop()
+                }) {
+                    Image(systemName: "play.fill")
+                
+                }
+                .padding()
+                .overlay(
+                            RoundedRectangle(cornerRadius: 30)
+                                .stroke(Color.blue, lineWidth: 2)
+                        )
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
+                        self.transform.start()
+                        isClicked = true
+                        longPress = true
+                    })
+                )
+                Spacer()
+                Button(action: {
+                    if self.longPress {
+                        self.transform.start()
+                        isClicked = false
+                        longPress = false
+                    }
+                    self.transform.stop()
+                }) {
+                    Image(systemName: "arrow.up")
+                
+                }
+                .padding()
+                .overlay(
+                            RoundedRectangle(cornerRadius: 30)
+                                .stroke(Color.blue, lineWidth: 2)
+                        )
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
+                        self.transform.start()
+                        isClicked = true
+                        longPress = true
+                    })
+                )
+                Spacer()
+            }
+            Spacer()
         }.navigationBarTitle(Text("Warm Up"))
-        .onAppear {
-            self.transform.start()
-        }
-        .onDisappear {
-            self.transform.stop()
-        }
+//        .onAppear {
+//            self.transform.start()
+//        }
+//        .onDisappear {
+//            self.transform.stop()
+//        }
     }
     
 }

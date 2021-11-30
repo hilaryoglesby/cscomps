@@ -23,6 +23,8 @@ struct StaffView: View {
 
                 Spacer()
             }
+            Text("\(warmup.steps.count)")
+            Text("\(notes.count)")
         }
     }
 }
