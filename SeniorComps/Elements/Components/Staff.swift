@@ -13,13 +13,17 @@ struct Staff: View {
     var warmup: Progression
     var path: KeyPath<Progression.Step, Range<Double>>
     var notes: [String]
+    var intervals: [Int]
+    @Binding var indexPlaying : Int
+    @Binding var flatNotes : [Int]
+    @Binding var sharpNotes : [Int]
 
-    var color: Color {
-        switch path {
-        default:
-            return .black
-        }
-    }
+//    var color: Color {
+////        switch path {
+////        default:
+////            return .black
+////        }
+//    }
 
     var body: some View {
         let data = warmup.steps
@@ -30,16 +34,20 @@ struct Staff: View {
 
         return GeometryReader { proxy in
             VStack {
-                HStack(spacing: proxy.size.width / 120) {
+                HStack {
                     ForEach(Array(data.enumerated()), id: \.offset) { index, observation in
                         MusicNote(
                             index: index,
-                            color: color,
+//                            color: color,
                             size: duration,
-                            height: proxy.size.height,
+                            height: 70,
                             range: observation[keyPath: path],
                             overallRange: overallRange,
-                            notes: notes
+                            notes: notes,
+                            intervals: intervals,
+                            indexPlaying: $indexPlaying,
+                            flatNotes: $flatNotes,
+                            sharpNotes: $sharpNotes
                         )
                     }
                     .offset(x: 0, y: proxy.size.height * heightRatio)

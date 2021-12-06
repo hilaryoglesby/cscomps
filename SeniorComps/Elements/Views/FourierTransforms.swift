@@ -8,6 +8,7 @@
 import Foundation
 import AudioKitEX
 import AudioKit
+import AudioKitUI
 import UIKit
 import AudioToolbox
 import SoundpipeAudioKit
@@ -61,11 +62,11 @@ class Transform: ObservableObject {
         indexes.append(index)
         let size = Double(indexes.count)
         var ind =  0.0
-        if size == 50 {
+        if size == 20 {
             indexes.remove(at: 0)
             let total = Double(indexes.reduce(0, +))
             print(total)
-            ind = total / 50
+            ind = total / 20
             print(index)
         }
         else {
@@ -128,14 +129,25 @@ struct TunerView: View {
     @State private var showDevices: Bool = false
     @State var isClicked = false
     @State var longPress = false
+    @State private var width: CGFloat = 300
+    @State private var height: CGFloat = 300
+    @State private var down: Bool = true
+    
 
     var body: some View {
         VStack {
+            Spacer()
             HStack {
-                Text("Note Name")
-                Spacer()
-                Text("\(transform.data.note_sharps) / \(transform.data.note_flats)")
+                Text("\(transform.data.note_flats)")
             }.padding()
+            .overlay(
+                Circle()
+                    .strokeBorder(style: StrokeStyle(lineWidth: 18, dash: [2, 15]))
+                    .frame(width: width, height: height)
+                    .foregroundColor(Color("downButton"))
+                    )
+            .font(.system(size: 100))
+            Spacer()
             Button(action: {
                 if self.longPress {
                     self.transform.start()
@@ -146,13 +158,46 @@ struct TunerView: View {
             }) {
                 Image(systemName: "mic")
             
-            }.simultaneousGesture(
+            }.foregroundColor(Color("micButton"))
+            .padding()
+            .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(Color("micButton"), lineWidth: 2)
+                    )
+            .simultaneousGesture(
                 LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
                     self.transform.start()
                     isClicked = true
                     longPress = true
                 })
-            )}
+            )
+            Spacer()
+            Spacer()
+//            Button(action: {
+//                if self.longPress {
+//                    self.transform.start()
+//                    isClicked = false
+//                    longPress = false
+//                }
+//                self.transform.stop()
+//            }) {
+//                Image(systemName: "questionmark")
+//
+//            }
+//            .foregroundColor(Color("micButton"))
+//            .padding()
+//            .overlay(
+//                RoundedRectangle(cornerRadius: 30)
+//                    .stroke(Color("micButton"), lineWidth: 2)
+//            )
+//            .simultaneousGesture(
+//                LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
+//                    self.transform.start()
+//                    isClicked = true
+//                    longPress = true
+//                })
+//            )
+        }
     }
 }
 

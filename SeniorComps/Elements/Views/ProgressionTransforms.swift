@@ -17,6 +17,7 @@ struct ProgressionTransformData {
     var prog : Progression = load("pentatonic.json")
     var note_names : [String] = []
     var pitch: Float = 0.0
+    var intervals: [Int] = []
     var amplitude: Float = 0.0
     var start_note = 0
     var start_oct = 3
@@ -40,6 +41,10 @@ class ProgressionTransform: ObservableObject {
     let notes_flats = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"]
     var count : Int = 0
     
+    var indexPlaying : Int = 0
+    var flatNotes : [Int]  = []
+    var sharpNotes : [Int] = []
+    
     @Published var data = ProgressionTransformData()
     
     @objc func fireTimer() {
@@ -47,6 +52,7 @@ class ProgressionTransform: ObservableObject {
             timer.invalidate()
         }
         data.prog_note = data.note_names[count]
+        indexPlaying = count
         count += 1
     }
     
@@ -83,6 +89,7 @@ class ProgressionTransform: ObservableObject {
         }
         else {
             data.correct = "False"
+            flatNotes.append(index)
         }
     }
     
@@ -102,12 +109,14 @@ class ProgressionTransform: ObservableObject {
         engine.output = silence
         
         data.prog_note = notes_sharps[data.start_note] + "\(data.start_oct)"
+        data.intervals.append(0)
         data.note_names.append(data.prog_note)
         var temp = data.start_note
-        for j in 0 ..< data.prog.steps.count {
+        for j in 0 ..< data.prog.steps.count - 1 {
             let a : Range<Double> = data.prog.steps[j].interval
             let i = Int(a.upperBound - a.lowerBound)
             temp += i
+            data.intervals.append(i)
             let new_note = notes_sharps[temp]
             if new_note == "C" {
                 data.start_oct += 1
@@ -151,16 +160,23 @@ class ProgressionTransform: ObservableObject {
     }
 }
 
-func mirrorProg(vals: inout Progression, notes: inout [String]) -> (notes: [String], vals: Progression){
+func mirrorProg(vals: inout Progression, notes: inout [String], intervals: inout [Int]) -> (notes: [String], vals: Progression, intervals: [Int]){
     let notes_len = notes.count
     let vals_len = vals.steps.count
+    for i in 0 ..< notes_len {
+        notes[i] = String(notes[i].dropLast())
+    }
     for i in 2 ..< notes_len {
         notes.append(notes[notes_len - i])
+        intervals.append(intervals[notes_len - i])
     }
     for j in 2 ..< vals_len {
         vals.steps.append(vals.steps[vals_len - j])
     }
-    return (notes, vals)
+    notes.append(notes[0])
+    vals.steps.append(vals.steps[0])
+    intervals.append(intervals[0])
+    return (notes, vals, intervals)
 }
 
 struct ProgressionEvaluateView: View {
@@ -168,12 +184,15 @@ struct ProgressionEvaluateView: View {
     var prog : Progression = load("pentatonic.json")
     @State var isClicked = false
     @State var longPress = false
+    @State var indexPlaying = ProgressionTransform().indexPlaying
+    @State var flatNotes = ProgressionTransform().flatNotes
+    @State var sharpNotes = ProgressionTransform().sharpNotes
     
     
 //    var notes : [String] = ProgressionTransform().data.note_names
 //    var vals : Progression = ProgressionTransform().data.prog
     
-    let result = mirrorProg(vals: &ProgressionTransform().data.prog, notes: &ProgressionTransform().data.note_names)
+    let result = mirrorProg(vals: &ProgressionTransform().data.prog, notes: &ProgressionTransform().data.note_names, intervals: &ProgressionTransform().data.intervals)
 //    var notes : [String] = result.notes
 //    var vals : Progression = result.vals
     
@@ -181,10 +200,9 @@ struct ProgressionEvaluateView: View {
         VStack  {
             Spacer()
             HStack {
-                Spacer()
-                StaffView(warmup: result.vals, notes: result.notes)
-                Spacer()
+                StaffView(warmup: result.vals, notes: result.notes, intervals: result.intervals, indexPlaying: $transform.indexPlaying, flatNotes: $transform.flatNotes, sharpNotes: $transform.sharpNotes)
             }
+            Text("\(transform.indexPlaying)")
 //            HStack {
 //                Text("\(transform.data.note_sharps)")
 //                Spacer()
@@ -208,11 +226,11 @@ struct ProgressionEvaluateView: View {
                 }) {
                     Image(systemName: "arrow.down")
                 
-                }
+                }.foregroundColor(Color("downButton"))
                 .padding()
                 .overlay(
                             RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.blue, lineWidth: 2)
+                                .stroke(Color("downButton"), lineWidth: 2)
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
@@ -232,11 +250,11 @@ struct ProgressionEvaluateView: View {
                 }) {
                     Image(systemName: "mic")
                 
-                }
+                }.foregroundColor(Color("micButton"))
                 .padding()
                 .overlay(
                             RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.blue, lineWidth: 2)
+                                .stroke(Color("micButton"), lineWidth: 2)
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
@@ -256,11 +274,11 @@ struct ProgressionEvaluateView: View {
                 }) {
                     Image(systemName: "play.fill")
                 
-                }
+                }.foregroundColor(Color("playButton"))
                 .padding()
                 .overlay(
                             RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.blue, lineWidth: 2)
+                                .stroke(Color("playButton"), lineWidth: 2)
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
@@ -280,11 +298,11 @@ struct ProgressionEvaluateView: View {
                 }) {
                     Image(systemName: "arrow.up")
                 
-                }
+                }.foregroundColor(Color("upButton"))
                 .padding()
                 .overlay(
                             RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.blue, lineWidth: 2)
+                                .stroke(Color("upButton"), lineWidth: 2)
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
@@ -294,9 +312,45 @@ struct ProgressionEvaluateView: View {
                     })
                 )
                 Spacer()
+            }.padding()
+            Spacer()
+            HStack {
+                Spacer()
+                Text("It seems like you are singing slightly under pitch on some notes. Try to imagine your voice floating on top of the note instead of reaching up to it!")
+                    .frame(width: 300)
+                    .multilineTextAlignment(.center)
+                .padding()
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color("playButton"), lineWidth: 2)
+                )
+                Spacer()
             }
             Spacer()
-        }.navigationBarTitle(Text("Warm Up"))
+            Button(action: {
+                if self.longPress {
+                    self.transform.start()
+                    isClicked = false
+                    longPress = false
+                }
+                self.transform.stop()
+            }) {
+                Image(systemName: "questionmark")
+            
+            }.foregroundColor(Color("micButton"))
+            .padding()
+            .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(Color("micButton"), lineWidth: 2)
+                    )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
+                    self.transform.start()
+                    isClicked = true
+                    longPress = true
+                })
+            )
+        }.navigationBarTitle(Text("Pentatonic Scale"))
 //        .onAppear {
 //            self.transform.start()
 //        }
