@@ -36,6 +36,7 @@ class Transform: ObservableObject {
     @Published var data = TransformData()
     
     var indexes: [Int] = []
+    var freqs : [Float] = []
     
     func update(_ pitch: AUValue, _ amp: AUValue) {
         data.pitch = pitch
@@ -48,39 +49,31 @@ class Transform: ObservableObject {
         while freq < Float(frequencies[0]) {
             freq *= 2.0
         }
-
+        freqs.append(freq)
+        let size = Double(freqs.count)
+        var f : Float = 0
+        if size == 25 {
+            freqs.remove(at: 0)
+            let total = Double(freqs.reduce(0, +))
+            f = Float(total / 25)
+        }
+        else {
+            let total = Double(freqs.reduce(0, +))
+            f = Float(total / size)
+        }
+        
         var min_dist: Float = 10_000.0
         var index = 0
 
         for i in 0 ..< frequencies.count {
-            let dist = fabsf(Float(frequencies[i]) - freq)
+            let dist = fabsf(Float(frequencies[i]) - f)
             if dist < min_dist {
                 index = i
                 min_dist = dist
             }
         }
-        indexes.append(index)
-        let size = Double(indexes.count)
-        var ind =  0.0
-        if size == 20 {
-            indexes.remove(at: 0)
-            let total = Double(indexes.reduce(0, +))
-            print(total)
-            ind = total / 20
-            print(index)
-        }
-        else {
-            let total = Double(indexes.reduce(0, +))
-            print(total)
-            ind = total/size
-        }
-        if (ind.truncatingRemainder(dividingBy: 1) >= 0.5) {
-            index = Int((ind / 1) + 1)
-        }
-        else {
-            index = Int(ind / 1 )
-        }
-        let oct = Int(log2f(pitch / freq))
+        
+        let oct = Int(log2f(pitch / f))
         print(index)
         data.note_sharps = "\(notes_sharps[index])\(oct)"
         data.note_flats = "\(notes_flats[index])\(oct)"
@@ -103,7 +96,6 @@ class Transform: ObservableObject {
 
         tracker = PitchTap(mic) { pitch, amp in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-//                FIXME
                 self.update(pitch[0], amp[0])
             }
         }
@@ -173,30 +165,6 @@ struct TunerView: View {
             )
             Spacer()
             Spacer()
-//            Button(action: {
-//                if self.longPress {
-//                    self.transform.start()
-//                    isClicked = false
-//                    longPress = false
-//                }
-//                self.transform.stop()
-//            }) {
-//                Image(systemName: "questionmark")
-//
-//            }
-//            .foregroundColor(Color("micButton"))
-//            .padding()
-//            .overlay(
-//                RoundedRectangle(cornerRadius: 30)
-//                    .stroke(Color("micButton"), lineWidth: 2)
-//            )
-//            .simultaneousGesture(
-//                LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
-//                    self.transform.start()
-//                    isClicked = true
-//                    longPress = true
-//                })
-//            )
         }
     }
 }

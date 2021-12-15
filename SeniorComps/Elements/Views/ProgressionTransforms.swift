@@ -2,7 +2,7 @@
 //  ProgressionTransforms.swift
 //  SeniorComps
 //
-//  Created by Hilary on 11/22/21.
+//  Created by Hilary on 10/22/21.
 //
 
 import Foundation
@@ -12,6 +12,54 @@ import UIKit
 import AudioToolbox
 import SoundpipeAudioKit
 import SwiftUI
+
+struct OscillatorData {
+    var playing = false
+    var frequency: AUValue = 440
+}
+
+class OscillatorConductor: ObservableObject {
+    let OscEngine = AudioEngine()
+    var OscTimer = Timer()
+    var i : Int = 0
+    
+    @objc func changePitch() {
+        let frequencies : [AUValue] = [293.6, 311.2, 329.6, 369.92]
+        osc.$frequency.ramp(to: frequencies[i], duration: 0.1)
+        if i < frequencies.count - 1 {
+            i += 1
+        }
+    }
+    
+    @Published var OscData = OscillatorData() {
+        didSet {
+            osc.start()
+            osc.$frequency.ramp(to: 261.6, duration: 0.1)
+        }
+    }
+    var osc = VocalTract()
+    
+    init() {
+        OscEngine.output = osc
+    }
+    
+    func start() {
+        OscData.playing = true
+        OscTimer = Timer.scheduledTimer(timeInterval: 2, target: self, selector: #selector(changePitch), userInfo: nil, repeats: true)
+        do {
+            try OscEngine.start()
+        } catch let err {
+            Log(err)
+        }
+    }
+    
+    func stop() {
+        OscData.playing = false
+        osc.stop()
+        OscEngine.stop()
+        OscTimer.invalidate()
+    }
+}
 
 struct ProgressionTransformData {
     var prog : Progression = load("pentatonic.json")
@@ -25,7 +73,6 @@ struct ProgressionTransformData {
     var note_flats = " "
     var prog_note: String = "C4"
     var correct : String = "false"
-    var hello = 1
 }
 
 class ProgressionTransform: ObservableObject {
@@ -89,7 +136,7 @@ class ProgressionTransform: ObservableObject {
         }
         else {
             data.correct = "False"
-            flatNotes.append(index)
+            flatNotes.append(count - 1)
         }
     }
     
@@ -134,20 +181,7 @@ class ProgressionTransform: ObservableObject {
     func start() {
         do {
             try engine.start()
-//            data.prog_note = notes_sharps[data.start_note] + "\(data.start_oct)"
-//            data.note_names.append(data.prog_note)
-//            var temp = data.start_note
-//            for j in 0 ..< data.prog.steps.count {
-//                let a : Range<Double> = data.prog.steps[j].interval
-//                let i = Int(a.upperBound - a.lowerBound)
-//                temp += i
-//                let new_note = notes_sharps[temp]
-//                if new_note == "C" {
-//                    data.start_oct += 1
-//                }
-//                data.note_names.append(new_note + "\(data.start_oct)")
-//            }
-            timer = Timer.scheduledTimer(timeInterval: 3, target: self, selector: #selector(fireTimer), userInfo: nil, repeats: true)
+            timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(fireTimer), userInfo: nil, repeats: true)
             tracker.start()
         } catch let err {
             Log(err)
@@ -182,19 +216,14 @@ func mirrorProg(vals: inout Progression, notes: inout [String], intervals: inout
 struct ProgressionEvaluateView: View {
     @StateObject var transform = ProgressionTransform()
     var prog : Progression = load("pentatonic.json")
+    var conductor = OscillatorConductor()
     @State var isClicked = false
     @State var longPress = false
     @State var indexPlaying = ProgressionTransform().indexPlaying
     @State var flatNotes = ProgressionTransform().flatNotes
     @State var sharpNotes = ProgressionTransform().sharpNotes
     
-    
-//    var notes : [String] = ProgressionTransform().data.note_names
-//    var vals : Progression = ProgressionTransform().data.prog
-    
     let result = mirrorProg(vals: &ProgressionTransform().data.prog, notes: &ProgressionTransform().data.note_names, intervals: &ProgressionTransform().data.intervals)
-//    var notes : [String] = result.notes
-//    var vals : Progression = result.vals
     
     var body: some View {
         VStack  {
@@ -202,17 +231,6 @@ struct ProgressionEvaluateView: View {
             HStack {
                 StaffView(warmup: result.vals, notes: result.notes, intervals: result.intervals, indexPlaying: $transform.indexPlaying, flatNotes: $transform.flatNotes, sharpNotes: $transform.sharpNotes)
             }
-            Text("\(transform.indexPlaying)")
-//            HStack {
-//                Text("\(transform.data.note_sharps)")
-//                Spacer()
-//                Text("\(transform.data.prog_note)")
-//                Spacer()
-//                Text("\(transform.data.correct)")
-//            }
-//            HStack {
-//                Text("\(transform.data.start_note)")
-//            }
             Spacer()
             HStack {
                 Spacer()
@@ -266,11 +284,11 @@ struct ProgressionEvaluateView: View {
                 Spacer()
                 Button(action: {
                     if self.longPress {
-                        self.transform.start()
+                        self.conductor.start()
                         isClicked = false
                         longPress = false
                     }
-                    self.transform.stop()
+                    self.conductor.stop()
                 }) {
                     Image(systemName: "play.fill")
                 
@@ -282,7 +300,7 @@ struct ProgressionEvaluateView: View {
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
-                        self.transform.start()
+                        self.conductor.start()
                         isClicked = true
                         longPress = true
                     })
@@ -314,19 +332,6 @@ struct ProgressionEvaluateView: View {
                 Spacer()
             }.padding()
             Spacer()
-            HStack {
-                Spacer()
-                Text("It seems like you are singing slightly under pitch on some notes. Try to imagine your voice floating on top of the note instead of reaching up to it!")
-                    .frame(width: 300)
-                    .multilineTextAlignment(.center)
-                .padding()
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color("playButton"), lineWidth: 2)
-                )
-                Spacer()
-            }
-            Spacer()
             Button(action: {
                 if self.longPress {
                     self.transform.start()
@@ -351,12 +356,6 @@ struct ProgressionEvaluateView: View {
                 })
             )
         }.navigationBarTitle(Text("Pentatonic Scale"))
-//        .onAppear {
-//            self.transform.start()
-//        }
-//        .onDisappear {
-//            self.transform.stop()
-//        }
     }
     
 }
