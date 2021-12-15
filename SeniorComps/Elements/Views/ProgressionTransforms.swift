@@ -2,7 +2,7 @@
 //  ProgressionTransforms.swift
 //  SeniorComps
 //
-//  Created by Hilary on 11/22/21.
+//  Created by Hilary on 10/22/21.
 //
 
 import Foundation
@@ -13,10 +13,59 @@ import AudioToolbox
 import SoundpipeAudioKit
 import SwiftUI
 
+struct OscillatorData {
+    var playing = false
+    var frequency: AUValue = 440
+}
+
+class OscillatorConductor: ObservableObject {
+    let OscEngine = AudioEngine()
+    var OscTimer = Timer()
+    var i : Int = 0
+    
+    @objc func changePitch() {
+        let frequencies : [AUValue] = [293.6, 311.2, 329.6, 369.92]
+        osc.$frequency.ramp(to: frequencies[i], duration: 0.1)
+        if i < frequencies.count - 1 {
+            i += 1
+        }
+    }
+    
+    @Published var OscData = OscillatorData() {
+        didSet {
+            osc.start()
+            osc.$frequency.ramp(to: 261.6, duration: 0.1)
+        }
+    }
+    var osc = VocalTract()
+    
+    init() {
+        OscEngine.output = osc
+    }
+    
+    func start() {
+        OscData.playing = true
+        OscTimer = Timer.scheduledTimer(timeInterval: 2, target: self, selector: #selector(changePitch), userInfo: nil, repeats: true)
+        do {
+            try OscEngine.start()
+        } catch let err {
+            Log(err)
+        }
+    }
+    
+    func stop() {
+        OscData.playing = false
+        osc.stop()
+        OscEngine.stop()
+        OscTimer.invalidate()
+    }
+}
+
 struct ProgressionTransformData {
     var prog : Progression = load("pentatonic.json")
     var note_names : [String] = []
     var pitch: Float = 0.0
+    var intervals: [Int] = []
     var amplitude: Float = 0.0
     var start_note = 0
     var start_oct = 3
@@ -24,7 +73,6 @@ struct ProgressionTransformData {
     var note_flats = " "
     var prog_note: String = "C4"
     var correct : String = "false"
-    var hello = 1
 }
 
 class ProgressionTransform: ObservableObject {
@@ -40,6 +88,10 @@ class ProgressionTransform: ObservableObject {
     let notes_flats = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"]
     var count : Int = 0
     
+    var indexPlaying : Int = 0
+    var flatNotes : [Int]  = []
+    var sharpNotes : [Int] = []
+    
     @Published var data = ProgressionTransformData()
     
     @objc func fireTimer() {
@@ -47,6 +99,7 @@ class ProgressionTransform: ObservableObject {
             timer.invalidate()
         }
         data.prog_note = data.note_names[count]
+        indexPlaying = count
         count += 1
     }
     
@@ -83,6 +136,7 @@ class ProgressionTransform: ObservableObject {
         }
         else {
             data.correct = "False"
+            flatNotes.append(count - 1)
         }
     }
     
@@ -102,12 +156,14 @@ class ProgressionTransform: ObservableObject {
         engine.output = silence
         
         data.prog_note = notes_sharps[data.start_note] + "\(data.start_oct)"
+        data.intervals.append(0)
         data.note_names.append(data.prog_note)
         var temp = data.start_note
-        for j in 0 ..< data.prog.steps.count {
+        for j in 0 ..< data.prog.steps.count - 1 {
             let a : Range<Double> = data.prog.steps[j].interval
             let i = Int(a.upperBound - a.lowerBound)
             temp += i
+            data.intervals.append(i)
             let new_note = notes_sharps[temp]
             if new_note == "C" {
                 data.start_oct += 1
@@ -125,20 +181,7 @@ class ProgressionTransform: ObservableObject {
     func start() {
         do {
             try engine.start()
-//            data.prog_note = notes_sharps[data.start_note] + "\(data.start_oct)"
-//            data.note_names.append(data.prog_note)
-//            var temp = data.start_note
-//            for j in 0 ..< data.prog.steps.count {
-//                let a : Range<Double> = data.prog.steps[j].interval
-//                let i = Int(a.upperBound - a.lowerBound)
-//                temp += i
-//                let new_note = notes_sharps[temp]
-//                if new_note == "C" {
-//                    data.start_oct += 1
-//                }
-//                data.note_names.append(new_note + "\(data.start_oct)")
-//            }
-            timer = Timer.scheduledTimer(timeInterval: 3, target: self, selector: #selector(fireTimer), userInfo: nil, repeats: true)
+            timer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(fireTimer), userInfo: nil, repeats: true)
             tracker.start()
         } catch let err {
             Log(err)
@@ -151,50 +194,43 @@ class ProgressionTransform: ObservableObject {
     }
 }
 
-func mirrorProg(vals: inout Progression, notes: inout [String]) -> (notes: [String], vals: Progression){
+func mirrorProg(vals: inout Progression, notes: inout [String], intervals: inout [Int]) -> (notes: [String], vals: Progression, intervals: [Int]){
     let notes_len = notes.count
     let vals_len = vals.steps.count
+    for i in 0 ..< notes_len {
+        notes[i] = String(notes[i].dropLast())
+    }
     for i in 2 ..< notes_len {
         notes.append(notes[notes_len - i])
+        intervals.append(intervals[notes_len - i])
     }
     for j in 2 ..< vals_len {
         vals.steps.append(vals.steps[vals_len - j])
     }
-    return (notes, vals)
+    notes.append(notes[0])
+    vals.steps.append(vals.steps[0])
+    intervals.append(intervals[0])
+    return (notes, vals, intervals)
 }
 
 struct ProgressionEvaluateView: View {
     @StateObject var transform = ProgressionTransform()
     var prog : Progression = load("pentatonic.json")
+    var conductor = OscillatorConductor()
     @State var isClicked = false
     @State var longPress = false
+    @State var indexPlaying = ProgressionTransform().indexPlaying
+    @State var flatNotes = ProgressionTransform().flatNotes
+    @State var sharpNotes = ProgressionTransform().sharpNotes
     
-    
-//    var notes : [String] = ProgressionTransform().data.note_names
-//    var vals : Progression = ProgressionTransform().data.prog
-    
-    let result = mirrorProg(vals: &ProgressionTransform().data.prog, notes: &ProgressionTransform().data.note_names)
-//    var notes : [String] = result.notes
-//    var vals : Progression = result.vals
+    let result = mirrorProg(vals: &ProgressionTransform().data.prog, notes: &ProgressionTransform().data.note_names, intervals: &ProgressionTransform().data.intervals)
     
     var body: some View {
         VStack  {
             Spacer()
             HStack {
-                Spacer()
-                StaffView(warmup: result.vals, notes: result.notes)
-                Spacer()
+                StaffView(warmup: result.vals, notes: result.notes, intervals: result.intervals, indexPlaying: $transform.indexPlaying, flatNotes: $transform.flatNotes, sharpNotes: $transform.sharpNotes)
             }
-//            HStack {
-//                Text("\(transform.data.note_sharps)")
-//                Spacer()
-//                Text("\(transform.data.prog_note)")
-//                Spacer()
-//                Text("\(transform.data.correct)")
-//            }
-//            HStack {
-//                Text("\(transform.data.start_note)")
-//            }
             Spacer()
             HStack {
                 Spacer()
@@ -208,11 +244,11 @@ struct ProgressionEvaluateView: View {
                 }) {
                     Image(systemName: "arrow.down")
                 
-                }
+                }.foregroundColor(Color("downButton"))
                 .padding()
                 .overlay(
                             RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.blue, lineWidth: 2)
+                                .stroke(Color("downButton"), lineWidth: 2)
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
@@ -232,11 +268,11 @@ struct ProgressionEvaluateView: View {
                 }) {
                     Image(systemName: "mic")
                 
-                }
+                }.foregroundColor(Color("micButton"))
                 .padding()
                 .overlay(
                             RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.blue, lineWidth: 2)
+                                .stroke(Color("micButton"), lineWidth: 2)
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
@@ -248,23 +284,23 @@ struct ProgressionEvaluateView: View {
                 Spacer()
                 Button(action: {
                     if self.longPress {
-                        self.transform.start()
+                        self.conductor.start()
                         isClicked = false
                         longPress = false
                     }
-                    self.transform.stop()
+                    self.conductor.stop()
                 }) {
                     Image(systemName: "play.fill")
                 
-                }
+                }.foregroundColor(Color("playButton"))
                 .padding()
                 .overlay(
                             RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.blue, lineWidth: 2)
+                                .stroke(Color("playButton"), lineWidth: 2)
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
-                        self.transform.start()
+                        self.conductor.start()
                         isClicked = true
                         longPress = true
                     })
@@ -280,11 +316,11 @@ struct ProgressionEvaluateView: View {
                 }) {
                     Image(systemName: "arrow.up")
                 
-                }
+                }.foregroundColor(Color("upButton"))
                 .padding()
                 .overlay(
                             RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.blue, lineWidth: 2)
+                                .stroke(Color("upButton"), lineWidth: 2)
                         )
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
@@ -294,15 +330,32 @@ struct ProgressionEvaluateView: View {
                     })
                 )
                 Spacer()
-            }
+            }.padding()
             Spacer()
-        }.navigationBarTitle(Text("Warm Up"))
-//        .onAppear {
-//            self.transform.start()
-//        }
-//        .onDisappear {
-//            self.transform.stop()
-//        }
+            Button(action: {
+                if self.longPress {
+                    self.transform.start()
+                    isClicked = false
+                    longPress = false
+                }
+                self.transform.stop()
+            }) {
+                Image(systemName: "questionmark")
+            
+            }.foregroundColor(Color("micButton"))
+            .padding()
+            .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(Color("micButton"), lineWidth: 2)
+                    )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.1).onEnded({ _ in
+                    self.transform.start()
+                    isClicked = true
+                    longPress = true
+                })
+            )
+        }.navigationBarTitle(Text("Pentatonic Scale"))
     }
     
 }

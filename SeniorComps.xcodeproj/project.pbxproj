@@ -16,7 +16,6 @@
 		0BAFA5AB267AF8B600E79AA3 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0BAFA5AA267AF8B600E79AA3 /* Preview Assets.xcassets */; };
 		0BAFA5B6267AF8B700E79AA3 /* SeniorCompsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BAFA5B5267AF8B700E79AA3 /* SeniorCompsTests.swift */; };
 		0BAFA5C1267AF8B700E79AA3 /* SeniorCompsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BAFA5C0267AF8B700E79AA3 /* SeniorCompsUITests.swift */; };
-		0BB264692735E3B100A77028 /* TestOscillator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB264682735E3B000A77028 /* TestOscillator.swift */; };
 		0BB2646C2735E5E400A77028 /* AudioKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 0BB2646B2735E5E400A77028 /* AudioKitUI */; };
 		0BB2646E2736185600A77028 /* Progression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB2646D2736185600A77028 /* Progression.swift */; };
 		0BB2647227363B8D00A77028 /* Staff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB2647127363B8D00A77028 /* Staff.swift */; };
@@ -60,7 +59,6 @@
 		0BAFA5BC267AF8B700E79AA3 /* SeniorCompsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SeniorCompsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0BAFA5C0267AF8B700E79AA3 /* SeniorCompsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeniorCompsUITests.swift; sourceTree = "<group>"; };
 		0BAFA5C2267AF8B700E79AA3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		0BB264682735E3B000A77028 /* TestOscillator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestOscillator.swift; sourceTree = "<group>"; };
 		0BB2646D2736185600A77028 /* Progression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Progression.swift; sourceTree = "<group>"; };
 		0BB2647127363B8D00A77028 /* Staff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Staff.swift; sourceTree = "<group>"; };
 		0BB264732736DFD600A77028 /* MusicNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicNote.swift; sourceTree = "<group>"; };
@@ -169,7 +167,6 @@
 			children = (
 				0BA2B7CB2755EEF30079E751 /* Musical Progressions */,
 				0BA2B7C72755EE400079E751 /* Elements */,
-				0BB264682735E3B000A77028 /* TestOscillator.swift */,
 				0BAFA5A3267AF8B300E79AA3 /* SeniorCompsApp.swift */,
 				0BAFA5A7267AF8B600E79AA3 /* Assets.xcassets */,
 				0BAFA5AC267AF8B600E79AA3 /* Info.plist */,
@@ -358,7 +355,6 @@
 				0BA2B7C427543DE00079E751 /* MainView.swift in Sources */,
 				0BB2646E2736185600A77028 /* Progression.swift in Sources */,
 				0BA2B7C62755EBC60079E751 /* Warmup.swift in Sources */,
-				0BB264692735E3B100A77028 /* TestOscillator.swift in Sources */,
 				0BB264762736F33000A77028 /* StaffView.swift in Sources */,
 				0BAFA5A4267AF8B300E79AA3 /* SeniorCompsApp.swift in Sources */,
 			);
